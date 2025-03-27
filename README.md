@@ -1,33 +1,25 @@
 # kasten-k10-scenarios
 # Challenges
 
-1. Install Kasten
-   Install Kasten, configure primary storage, and enable Kasten Dashboard access 
+1. Install Kasten 
+   - Install Kasten,
+   - configure primary storage, and 
+   - enable Kasten Dashboard access 
 2. Install MinIO
-   Install MinIO and configure a Kasten Location Profile 
+   - Install MinIO
+   - configure a Kasten Location Profile 
 3. Install App
-   Install an example, stateful application that will be protected using Kasten 
+   - Install an example, stateful application that will be protected using Kasten 
 4. Backup App
-   Create and run your first backup policy 
+   - Create and run your first backup policy 
 5. Restore App
-   Delete and restore your application
+   - Delete and restore your application
 6. (BONUS) Backup via API
-   Understand how to perform actions via API
+   - Understand how to perform actions via API
 
 ## Install Kasten
-### Part1. Review Lab Staging
-Each new lab will begin with a brief summary of the environment and any relevant staging details. Take a moment to review this information before proceeding with the lab, as environments and staging vary based on the requirements for each lab.
 
-This lab environment is comprised out of a single host:
-Host	Staging
-k8s-cluster	Single-node K3s cluster used to run and backup applications
-Hostpath CSI storage provisioner installed
-MinIO installed in minio namespace
-lab-bucket-immutable bucket created with Object Lock enabled
-
-Each lab is logically divided into multiple exercises, also called challenges. Each exercise is further divided into multiple Parts. Each Part should be completed before proceeding to the next exercise.
-
-### Part2. Pre-Flight Checks
+### Part1. Pre-Flight Checks
 1. In the ✅ Terminal tab, begin by adding the Kasten repository to helm, as this is required to run the pre-flight check script:
    
    ```shell
@@ -45,18 +37,21 @@ Each lab is logically divided into multiple exercises, also called challenges. E
    curl -s https://docs.kasten.io/tools/k10_primer.sh  | bash
    ```
 
-   You should expect to see the available StorageClass for the cluster and its associated VolumeSnapshotClass - but the VolumeSnapshotClass does not include the annotation required for Kasten! This annotation must be applied to each VolumeSnapshotClass on the cluster in order for Kasten to request snapshots of those volumes.
+   You should expect to see the available `StorageClass` for the cluster and its associated `VolumeSnapshotClass` - but the VolumeSnapshotClass does not include the annotation required for Kasten! This annotation must be applied to each VolumeSnapshotClass on the cluster in order for Kasten to request snapshots of those volumes.
 3. Run the command below to apply the necessary annotation and re-run the pre-flight script:
+   
+   ```shell
    kubectl annotate volumesnapshotclass csi-hostpath-snapclass \
    k10.kasten.io/is-snapshot-class=true
    curl -s https://docs.kasten.io/tools/k10_primer.sh  | bash
+   ```
 
    You should now see the proper annotation has been applied.
 
    💡 Note:
    For production CSI drivers, this script can also be used to validate CSI snapshot capabilities. See docs.kasten.io. https://docs.kasten.io/latest/install/storage.html#csi-preflight
 
-### Part 3. Install Kasten
+### Part 2. Install Kasten
 
 1. Now that we are confident our Kubernetes cluster meets the basic Kasten requirements, proceed with the installation in the ✅ Terminal:
 
@@ -67,10 +62,8 @@ Each lab is logically divided into multiple exercises, also called challenges. E
    # Install Kasten
    helm install k10 kasten/k10 \
    --namespace=kasten-io \
-   --version=6.5.4
    ```   
-   💡 Note:
-   For the purposes of this lab, you are installing a specific version of Kasten to ensure that instructions and screenshots are accurate. It is recommended to always install the latest supported version of Kasten available.
+  
 2. To ensure the Kasten installation completes successfully, monitor Pod status until every Pod appears as READY:
    
    ```shell
@@ -80,41 +73,9 @@ Each lab is logically divided into multiple exercises, also called challenges. E
    💡 Note:
    The watch command will provide updated output of the kubectl command every 2 seconds.
 
-### Part4. Accessing the Kasten Dashboard
+### Part3. Accessing the Kasten Dashboard
 
-Similar to other Kubernetes applications, the Kasten Dashboard is not exposed via the network by default.
-
-Note:
-Configuring LoadBalancer, Ingress, or Route settings for Kasten can be set via helm. See docs.kasten.io for a complete list of helm options.
-https://docs.kasten.io/latest/install/advanced.html?highlight=advanced%20installation#complete-list-of-k10-helm-options
-
-1. While not recommended for production environments, let's set up access to the Kasten Dashboard by creating a NodePort service to forward port 32000 from the host to port 80 of the Kasten gateway Service. In the ✅ Terminal tab, create the NodePort YAML manifest:
-
-   ```shell
-      cat > k10-nodeport-svc.yaml << EOF
-      apiVersion: v1
-      kind: Service
-      metadata:
-      name: gateway-nodeport
-      namespace: kasten-io
-      spec:
-      selector:
-      service: gateway
-      ports:
-      - name: http
-        port: 8000
-        nodePort: 32000
-        type: NodePort
-      EOF
-   ```
-2. Apply the manifest to the Kubernetes cluster:
-
-   ```shell
-   kubectl apply -f k10-nodeport-svc.yaml
-   ```
-
-   gateway is the entrypoint for access the Kasten user interface. We will explore the roles of additional Kasten components later in the training.
-3. Select the 🖥️ Kasten tab to view your Kasten web interface within Instruqt.
+Kasten Dashboard is accessibla via `kasten.<username>.strivly.academy`
 4. Specify an Email and Company name.
 5. Click Accept Terms.
 6. Click No, Thanks to dismiss the guided tour.
@@ -130,7 +91,7 @@ https://docs.kasten.io/latest/install/advanced.html?highlight=advanced%20install
    kubectl get all -n minio
    ```
 2. Select the 🪣 MinIO tab
-3. Log in using the following credentials: (minio, minio123)
+3. Log in using the default credentials
 4. Under Administrator in the left-hand menu, select Buckets. Click the pre-staged lab-bucket-immutable bucket to view its configuration.
 5. You should observe that Object Locking is enabled and that Retention is configured for 30 Days.
 
@@ -140,18 +101,16 @@ https://docs.kasten.io/latest/install/advanced.html?highlight=advanced%20install
 
 1. In the ✅ Terminal tab, run the following command and copy the ENDPOINT value for use in an upcoming step:
    ```shell
-   echo "MinIO Services: \n"
-   kubectl get service -n minio
-   echo "\nENDPOINT: \n"
-   echo "http://$HOSTNAME.$INSTRUQT_PARTICIPANT_ID.instruqt.io:32010"
+   echo "MinIO endpoint: \n"
+   kubectl get ingress -n minio
    ```
 2. In the 🖥️ Kasten tab, expand Profiles in the sidebar and click Locations.
 3. Click + New Profile to begin defining a new backup export location.
 4. Fill out the following fields but DO NOT click Save Profile yet:
    Profile Name	s3-immutable
    Storage Provider	S3 Compatible
-   S3 Access Key	minioadmin
-   S3 Secret	minioadmin
+   S3 Access Key	minio
+   S3 Secret	mini123
    Endpoint	Paste the ENDPOINT value from Step 1
    Region	custom
    Bucket	lab-bucket-immutable
@@ -194,6 +153,7 @@ https://docs.kasten.io/latest/install/advanced.html?highlight=advanced%20install
    kubectl get pvc -n mongodb
    ```
    You should expect to see 2x 8Gi volumes, 1 volume per mongo-mongodb-... database Pod, dynamically provisioned using the default csi-hostpath-sc StorageClass.
+   
    💡 Note:
    MongoDB achieves high availability through replication across multiple nodes. The primary replica receives all write operations and all secondary instances apply operations from the primary to maintain the same dataset. Other types of database may depend on a shared volume across two or more database servers.
 
@@ -555,4 +515,3 @@ The RunAction API provides a simpler means of performing a manual execution of a
    ```
 5. Once the action's State reaches Complete, press CTRL+C to end the watch.
 6. Again, you can validate the Policy Run appears under Actions on the 🖥️ Kasten.
-7. 
